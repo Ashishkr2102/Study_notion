@@ -21,11 +21,22 @@ database.connect();
 //middlewares
 app.use(express.json());
 app.use(cookieParser());
+const allowedOrigins = process.env.CORS_ORIGIN
+	? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
+	: ["http://localhost:3000"];
+console.log("Allowed CORS origins:", allowedOrigins);
+
 app.use(
 	cors({
-		origin: process.env.CORS_ORIGIN
-			? process.env.CORS_ORIGIN.split(",")
-			: ["http://localhost:3000"],
+		origin: function (origin, callback) {
+			// allow requests with no origin (mobile apps, curl, Postman)
+			if (!origin) return callback(null, true);
+			if (allowedOrigins.includes(origin)) {
+				return callback(null, true);
+			}
+			console.log("CORS blocked origin:", origin);
+			return callback(new Error("Not allowed by CORS"));
+		},
 		credentials: true,
 	})
 )
