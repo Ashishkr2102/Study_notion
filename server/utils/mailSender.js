@@ -6,10 +6,11 @@ const mailSender = async (email, title, body) => {
     if (process.env.RESEND_API_KEY) {
         try {
             const resend = new Resend(process.env.RESEND_API_KEY);
-            const fromAddress = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+            // RESEND_FROM_EMAIL should be just the email address, e.g. onboarding@resend.dev
+            const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
             const { data, error } = await resend.emails.send({
-                from: `StudyNotion <${fromAddress}>`,
+                from: `StudyNotion <${fromEmail}>`,
                 to: [email],
                 subject: title,
                 html: body,
