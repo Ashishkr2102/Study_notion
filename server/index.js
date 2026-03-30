@@ -23,8 +23,10 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
 	cors({
-		origin:"http://localhost:3000",
-		credentials:true,
+		origin: process.env.CORS_ORIGIN
+			? process.env.CORS_ORIGIN.split(",")
+			: ["http://localhost:3000"],
+		credentials: true,
 	})
 )
 
