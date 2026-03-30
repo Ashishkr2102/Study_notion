@@ -48,12 +48,33 @@ app.use("/api/v1/reach", contactUsRoute);
 
 app.get("/", (req, res) => {
 	return res.json({
-		success:true,
-		message:'Your server is up and running....'
+		success: true,
+		message: "Your server is up and running....",
 	});
 });
 
+// Health check endpoint – use with UptimeRobot to keep Render warm
+app.get("/health", (req, res) => {
+	return res.status(200).json({ success: true, message: "Server is healthy" });
+});
+
 app.listen(PORT, () => {
-	console.log(`App is running at ${PORT}`)
-})
+	console.log(`App is running at ${PORT}`);
+
+	// Self-ping every 14 minutes so Render free tier never spins down mid-session
+	// Render idles after 15 minutes of no traffic
+	const RENDER_URL = process.env.RENDER_EXTERNAL_URL || "";
+	if (RENDER_URL) {
+		setInterval(() => {
+			const https = require("https");
+			https
+				.get(`${RENDER_URL}/health`, (res) => {
+					console.log(`Keepalive ping status: ${res.statusCode}`);
+				})
+				.on("error", (err) => {
+					console.log("Keepalive ping failed:", err.message);
+				});
+		}, 14 * 60 * 1000);
+	}
+});
 

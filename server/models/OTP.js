@@ -37,17 +37,19 @@ async function sendVerificationEmail(email, otp) {
 	}
 }
 
-// Define a post-save hook to send email after the document has been saved
-OTPSchema.pre("save", async function (next) {
+// Define a pre-save hook to send email after the document has been saved
+OTPSchema.pre("save", function (next) {
 	console.log("New document saved to database");
 
-	// Only send an email when a new document is created
+	// Call next() immediately so the OTP is saved and HTTP response is sent quickly
+	// Email is sent in the background (fire-and-forget) so SMTP issues never block the API
 	if (this.isNew) {
-		try {
-			await sendVerificationEmail(this.email, this.otp);
-		} catch (error) {
-			console.log("Email sending failed, but OTP saved:", error.message);
-		}
+		const email = this.email;
+		const otp = this.otp;
+		// Fire-and-forget: do NOT await this
+		sendVerificationEmail(email, otp).catch((error) => {
+			console.log("Background email sending failed:", error.message);
+		});
 	}
 	next();
 });
