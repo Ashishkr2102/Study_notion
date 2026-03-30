@@ -1,0 +1,12 @@
+MONGODB_URL=mongodb://localhost:27017/studynotion
+PORT=4000
+JWT_SECRET=studynotion_secret_key_2024
+CLOUD_NAME=your_cloudinary_name
+API_KEY=your_cloudinary_api_key
+API_SECRET=your_cloudinary_api_secret
+RAZORPAY_KEY=your_razorpay_key_id
+RAZORPAY_SECRET=your_razorpay_secret
+MAIL_HOST=smtp.gmail.com
+MAIL_USER=your_email@gmail.com
+MAIL_PASS=your_email_password
+FOLDER_NAME=studynotion
