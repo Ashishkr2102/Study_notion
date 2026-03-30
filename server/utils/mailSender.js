@@ -1,12 +1,35 @@
 const nodemailer = require("nodemailer");
 const { Resend } = require("resend");
+const sgMail = require("@sendgrid/mail");
 
 const mailSender = async (email, title, body) => {
-    // ── Strategy 1: Resend API (HTTPS – works on Render / any host) ──────────
+
+    // ── Strategy 1: SendGrid (HTTPS – free, any recipient, only needs sender verified) ──
+    if (process.env.SENDGRID_API_KEY) {
+        try {
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+            const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.MAIL_USER;
+
+            await sgMail.send({
+                from: { name: "StudyNotion", email: fromEmail },
+                to: email,
+                subject: title,
+                html: body,
+            });
+
+            console.log("Email sent via SendGrid to:", email);
+            return { response: "OK" };
+        } catch (err) {
+            const detail = err.response?.body?.errors?.[0]?.message || err.message;
+            console.log("SendGrid error:", detail);
+            return { response: "Email failed - " + detail };
+        }
+    }
+
+    // ── Strategy 2: Resend API (HTTPS – requires verified domain for other recipients) ──
     if (process.env.RESEND_API_KEY) {
         try {
             const resend = new Resend(process.env.RESEND_API_KEY);
-            // RESEND_FROM_EMAIL should be just the email address, e.g. onboarding@resend.dev
             const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
             const { data, error } = await resend.emails.send({
@@ -29,7 +52,7 @@ const mailSender = async (email, title, body) => {
         }
     }
 
-    // ── Strategy 2: Nodemailer / Gmail SMTP (local dev fallback) ─────────────
+    // ── Strategy 3: Nodemailer / Gmail SMTP (local dev fallback) ─────────────
     if (!process.env.MAIL_HOST || !process.env.MAIL_USER || !process.env.MAIL_PASS) {
         console.log("No email provider configured. Skipping email to:", email);
         return { response: "Email skipped - no provider configured" };
