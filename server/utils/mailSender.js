@@ -1,47 +1,71 @@
 const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 const mailSender = async (email, title, body) => {
-    try {
-        // Skip email if mail credentials are not configured
-        if (!process.env.MAIL_HOST || !process.env.MAIL_USER || !process.env.MAIL_PASS) {
-            console.log("Mail credentials not configured. Skipping email to:", email);
-            return { response: "Email skipped - credentials not configured" };
-        }
+    // ── Strategy 1: Resend API (HTTPS – works on Render / any host) ──────────
+    if (process.env.RESEND_API_KEY) {
+        try {
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            const fromAddress = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
-        // Remove any spaces from the app password (Gmail app passwords are 16 chars, no spaces)
+            const { data, error } = await resend.emails.send({
+                from: `StudyNotion <${fromAddress}>`,
+                to: [email],
+                subject: title,
+                html: body,
+            });
+
+            if (error) {
+                console.log("Resend API error:", error.message || JSON.stringify(error));
+                return { response: "Email failed - " + (error.message || JSON.stringify(error)) };
+            }
+
+            console.log("Email sent via Resend. ID:", data.id);
+            return { response: "OK", id: data.id };
+        } catch (err) {
+            console.log("Resend exception:", err.message);
+            return { response: "Email failed - " + err.message };
+        }
+    }
+
+    // ── Strategy 2: Nodemailer / Gmail SMTP (local dev fallback) ─────────────
+    if (!process.env.MAIL_HOST || !process.env.MAIL_USER || !process.env.MAIL_PASS) {
+        console.log("No email provider configured. Skipping email to:", email);
+        return { response: "Email skipped - no provider configured" };
+    }
+
+    try {
         const mailPass = process.env.MAIL_PASS.replace(/\s/g, "");
 
-        let transporter = nodemailer.createTransport({
+        const transporter = nodemailer.createTransport({
             host: process.env.MAIL_HOST,
             port: 587,
-            secure: false, // true for 465, false for other ports (STARTTLS)
+            secure: false,
             auth: {
                 user: process.env.MAIL_USER,
                 pass: mailPass,
             },
-            connectionTimeout: 10000, // 10 seconds
+            connectionTimeout: 10000,
             greetingTimeout: 10000,
             socketTimeout: 15000,
         });
 
-        // Race the sendMail against a 20-second timeout so the server never hangs
         const sendMailPromise = transporter.sendMail({
             from: `"StudyNotion" <${process.env.MAIL_USER}>`,
-            to: `${email}`,
-            subject: `${title}`,
-            html: `${body}`,
+            to: email,
+            subject: title,
+            html: body,
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Email send timed out after 20 seconds")), 20000)
+            setTimeout(() => reject(new Error("SMTP timed out after 20 seconds")), 20000)
         );
 
         const info = await Promise.race([sendMailPromise, timeoutPromise]);
-        console.log("Email sent:", info.response);
+        console.log("Email sent via SMTP:", info.response);
         return info;
     } catch (error) {
-        console.log("Mail send error:", error.message);
-        // Return gracefully instead of throwing — let callers decide how to handle
+        console.log("SMTP mail send error:", error.message);
         return { response: "Email failed - " + error.message };
     }
 };
